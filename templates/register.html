@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Criar conta | Tom Hanks</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+  <span class="eyebrow">Tom Hanks / Filmografia</span>
+  <h1>Crie seu perfil.</h1>
+  <p class="lead">Salve os filmes que você quer rever e registre suas próprias opiniões.</p>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %} <p class="flash">{{ messages[0] }}</p> {% endif %}
+    {% endwith %}
+  <form class="auth-form" method="POST">
+    <div class="field"><label for="nome">Nome</label><input id="nome" type="text" name="nome" required></div>
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" name="email" required></div>
+    <div class="field"><label for="senha">Senha</label><input id="senha" type="password" name="senha" required></div>
+        <button type="submit">Cadastrar</button>
+    </form>
+  <div class="auth-link"><a href="{{ url_for('login') }}">Voltar ao login</a></div>
+  </main>
+</body>
+</html>
