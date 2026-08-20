@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Entrar | Tom Hanks</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="auth-page">
+  <main class="auth-card">
+  <span class="eyebrow">Tom Hanks / Filmografia</span>
+  <h1>Que bom ver você.</h1>
+  <p class="lead">Entre para explorar a carreira e montar sua lista de favoritos.</p>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %} <p class="flash">{{ messages[0] }}</p> {% endif %}
+    {% endwith %}
+  <form class="auth-form" method="POST">
+    <div class="field"><label for="email">E-mail</label><input id="email" type="email" name="email" required></div>
+    <div class="field"><label for="senha">Senha</label><input id="senha" type="password" name="senha" required></div>
+        <button type="submit">Entrar</button>
+    </form>
+  <div class="auth-link">Ainda não tem uma conta? <a href="{{ url_for('register') }}">Criar conta</a></div>
+  </main>
+</body>
+</html>
