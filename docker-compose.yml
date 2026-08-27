@@ -1,7 +1,9 @@
 version: '3.8'
+
 services:
-  app:
+  catalog:
     build: .
+    container_name: catalog-service
     ports:
       - "${PORTA_ALUNO:-5000}:5000"
     environment:
@@ -11,3 +13,30 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
+      - AUTH_SERVICE_URL=http://auth-service:5000
+    networks:
+      - app-network
+    depends_on:
+      - auth-service
+
+  auth-service:
+    build: ./auth_service
+    container_name: auth-service
+    # Sem publicação de portas para o host (acessível apenas na rede interna do Docker)
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - SECRET_KEY=${SECRET_KEY}
+      - MAIL_SERVER=${MAIL_SERVER:-sandbox.smtp.mailtrap.io}
+      - MAIL_PORT=${MAIL_PORT:-2525}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM=${MAIL_FROM:-no-reply@tomhanks.local}
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

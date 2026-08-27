@@ -9,7 +9,7 @@
 <body>
     <header class="site-header">
         <a class="brand" href="{{ url_for('index') }}">Tom Hanks / Filmografia</a>
-        <div class="user-bar">Olá, {{ session['nome'] }} <a href="{{ url_for('logout') }}">Sair</a></div>
+        <div class="user-bar">Olá, {{ session['nome'] }} {% if session.get('role') %}<span class="badge" style="background:#e9ecef; padding:2px 6px; border-radius:4px; font-size:0.8em; margin-right:6px;">({{ session['role'] }})</span>{% endif %}<a href="{{ url_for('logout') }}">Sair</a></div>
     </header>
     <main class="page-shell">
         <section class="page-heading">
