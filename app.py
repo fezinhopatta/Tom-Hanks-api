@@ -28,7 +28,7 @@ def register():
                 'email': email,
                 'senha': senha,
                 'role': 'usuario'
-            }, timeout=5)
+            }, timeout=15)
             data = res.json()
             if res.status_code == 200 and data.get('success'):
                 flash('Cadastro realizado com sucesso! Faça login.')
@@ -50,7 +50,7 @@ def login():
             res = requests.post(f"{AUTH_SERVICE_URL}/api/login", json={
                 'email': email,
                 'senha': senha
-            }, timeout=5)
+            }, timeout=15)
             data = res.json()
             if res.status_code == 200 and data.get('success'):
                 user = data.get('user', {})
@@ -78,7 +78,7 @@ def forgot_password():
             res = requests.post(f"{AUTH_SERVICE_URL}/api/forgot-password", json={
                 'email': email,
                 'base_url': request.host_url
-            }, timeout=5)
+            }, timeout=15)
             data = res.json()
             flash(data.get('message', 'Solicitação processada com sucesso.'))
         except requests.RequestException as e:
@@ -91,7 +91,7 @@ def forgot_password():
 def reset_password(token):
     # Verifica validade do token primeiro
     try:
-        res_verify = requests.post(f"{AUTH_SERVICE_URL}/api/verify-token", json={'token': token}, timeout=5)
+        res_verify = requests.post(f"{AUTH_SERVICE_URL}/api/verify-token", json={'token': token}, timeout=15)
         data_verify = res_verify.json()
         if not data_verify.get('valid'):
             return render_template('reset_password.html', error=data_verify.get('reason', 'Link inválido ou expirado.'))
@@ -104,7 +104,7 @@ def reset_password(token):
             res = requests.post(f"{AUTH_SERVICE_URL}/api/reset-password", json={
                 'token': token,
                 'nova_senha': nova_senha
-            }, timeout=5)
+            }, timeout=15)
             data = res.json()
             if res.status_code == 200 and data.get('success'):
                 flash('Senha redefinida com sucesso! Faça login com a nova senha.')

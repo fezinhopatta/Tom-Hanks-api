@@ -1,6 +1,7 @@
 import os
 import uuid
 import smtplib
+import threading
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -206,7 +207,7 @@ def forgot_password():
             conn.commit()
 
             reset_url = f"{base_url.rstrip('/')}/reset-password/{token}"
-            send_reset_email(email, reset_url)
+            threading.Thread(target=send_reset_email, args=(email, reset_url), daemon=True).start()
 
         return jsonify({
             'success': True,
