@@ -2,10 +2,10 @@ import os
 import requests
 import mysql.connector
 from flask import Flask, render_template, request, redirect, url_for, session, flash
-from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret')
+AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://auth-service:5000')
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -20,19 +20,24 @@ def register():
     if request.method == 'POST':
         nome = request.form['nome']
         email = request.form['email']
-        senha = generate_password_hash(request.form['senha'])
+        senha = request.form['senha']
         
-        conn = get_db_connection()
-        cursor = conn.cursor()
         try:
-            cursor.execute("INSERT INTO usuarios (nome, email, senha_hash) VALUES (%s, %s, %s)", (nome, email, senha))
-            conn.commit()
-            return redirect(url_for('login'))
-        except mysql.connector.IntegrityError:
-            flash('Email já cadastrado.')
-        finally:
-            cursor.close()
-            conn.close()
+            res = requests.post(f"{AUTH_SERVICE_URL}/api/register", json={
+                'nome': nome,
+                'email': email,
+                'senha': senha,
+                'role': 'usuario'
+            }, timeout=5)
+            data = res.json()
+            if res.status_code == 200 and data.get('success'):
+                flash('Cadastro realizado com sucesso! Faça login.')
+                return redirect(url_for('login'))
+            else:
+                flash(data.get('error', 'Erro ao realizar cadastro.'))
+        except requests.RequestException as e:
+            flash(f'Erro de conexão com o serviço de autenticação: {e}')
+            
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -41,24 +46,75 @@ def login():
         email = request.form['email']
         senha = request.form['senha']
         
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM usuarios WHERE email = %s", (email,))
-        user = cursor.fetchone()
-        cursor.close()
-        conn.close()
-        
-        if user and check_password_hash(user['senha_hash'], senha):
-            session['user_id'] = user['id']
-            session['nome'] = user['nome']
-            return redirect(url_for('index'))
-        flash('Credenciais inválidas.')
+        try:
+            res = requests.post(f"{AUTH_SERVICE_URL}/api/login", json={
+                'email': email,
+                'senha': senha
+            }, timeout=5)
+            data = res.json()
+            if res.status_code == 200 and data.get('success'):
+                user = data.get('user', {})
+                session['user_id'] = user.get('id')
+                session['nome'] = user.get('nome')
+                session['role'] = user.get('role', 'usuario')
+                return redirect(url_for('index'))
+            else:
+                flash(data.get('error', 'Credenciais inválidas.'))
+        except requests.RequestException as e:
+            flash(f'Erro de conexão com o serviço de autenticação: {e}')
+            
     return render_template('login.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        try:
+            res = requests.post(f"{AUTH_SERVICE_URL}/api/forgot-password", json={
+                'email': email,
+                'base_url': request.host_url
+            }, timeout=5)
+            data = res.json()
+            flash(data.get('message', 'Solicitação processada com sucesso.'))
+        except requests.RequestException as e:
+            flash(f'Erro ao se comunicar com o serviço de autenticação: {e}')
+        return redirect(url_for('login'))
+        
+    return render_template('forgot_password.html')
+
+@app.route('/reset-password/<token>', methods=['GET', 'POST'])
+def reset_password(token):
+    # Verifica validade do token primeiro
+    try:
+        res_verify = requests.post(f"{AUTH_SERVICE_URL}/api/verify-token", json={'token': token}, timeout=5)
+        data_verify = res_verify.json()
+        if not data_verify.get('valid'):
+            return render_template('reset_password.html', error=data_verify.get('reason', 'Link inválido ou expirado.'))
+    except requests.RequestException as e:
+        return render_template('reset_password.html', error=f'Erro de conexão com o serviço de autenticação: {e}')
+
+    if request.method == 'POST':
+        nova_senha = request.form['nova_senha']
+        try:
+            res = requests.post(f"{AUTH_SERVICE_URL}/api/reset-password", json={
+                'token': token,
+                'nova_senha': nova_senha
+            }, timeout=5)
+            data = res.json()
+            if res.status_code == 200 and data.get('success'):
+                flash('Senha redefinida com sucesso! Faça login com a nova senha.')
+                return redirect(url_for('login'))
+            else:
+                return render_template('reset_password.html', error=data.get('error', 'Erro ao redefinir senha.'))
+        except requests.RequestException as e:
+            return render_template('reset_password.html', error=f'Erro ao comunicar com o serviço de autenticação: {e}')
+
+    return render_template('reset_password.html', error=None)
 
 @app.route('/')
 def index():
