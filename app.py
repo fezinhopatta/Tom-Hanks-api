@@ -75,9 +75,10 @@ def forgot_password():
     if request.method == 'POST':
         email = request.form['email']
         try:
+            base_url = os.getenv('APP_URL') or request.host_url
             res = requests.post(f"{AUTH_SERVICE_URL}/api/forgot-password", json={
                 'email': email,
-                'base_url': request.host_url
+                'base_url': base_url
             }, timeout=15)
             data = res.json()
             flash(data.get('message', 'Solicitação processada com sucesso.'))

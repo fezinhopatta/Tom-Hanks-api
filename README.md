@@ -170,13 +170,15 @@ DB_USER=seu_usuario
 DB_PASSWORD=sua_senha
 DB_NAME=seu_banco
 SECRET_KEY=sua_chave_secreta
+PORTA_ALUNO=5000
+APP_URL=http://localhost:5000
 
-# Mailtrap Credentials (Sandbox)
-MAIL_SERVER=sandbox.smtp.mailtrap.io
-MAIL_PORT=2525
-MAIL_USERNAME=seu_mailtrap_username
-MAIL_PASSWORD=seu_mailtrap_password
-MAIL_FROM=no-reply@tomhanks.local
+# Mailtrap Credentials (Sandbox) / Brevo
+MAIL_SERVER=smtp-relay.brevo.com
+MAIL_PORT=587
+MAIL_USERNAME=seu_usuario
+MAIL_PASSWORD=sua_senha
+MAIL_FROM=seu_email_validado@dominio.com
 ```
 
 ### 2. Iniciar os Containers
