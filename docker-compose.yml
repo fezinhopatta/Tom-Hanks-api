@@ -14,6 +14,7 @@ services:
       - DB_NAME=${DB_NAME}
       - SECRET_KEY=${SECRET_KEY}
       - AUTH_SERVICE_URL=http://auth-service:5000
+      - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
     networks:
       - app-network
     depends_on:
@@ -34,6 +35,7 @@ services:
       - MAIL_USERNAME=${MAIL_USERNAME}
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM:-no-reply@tomhanks.local}
+      - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
     networks:
       - app-network
 

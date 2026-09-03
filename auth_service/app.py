@@ -183,7 +183,7 @@ def login():
 def forgot_password():
     data = request.get_json() or request.form
     email = data.get('email')
-    base_url = data.get('base_url', 'http://localhost:5000')
+    base_url = data.get('base_url') or os.getenv('APP_URL', 'http://localhost:5000')
 
     if not email:
         return jsonify({'success': False, 'error': 'Informe o e-mail.'}), 400
