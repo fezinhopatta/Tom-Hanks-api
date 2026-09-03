@@ -46,7 +46,14 @@
             <h4>Comentários</h4>
             <ul class="comments">
                 {% for com in comentarios.get(movie.id, []) %}
-                    <li>{{ com }}</li>
+                    <li style="margin-bottom: 6px;">
+                        <strong>{{ com.nome }}:</strong> {{ com.texto }}
+                        {% if session.get('role') == 'admin' or session.get('user_id') == com.usuario_id %}
+                        <form action="{{ url_for('apagar_comentario', comment_id=com.id) }}" method="POST" style="display:inline;">
+                            <button type="submit" style="background:#dc3545; color:white; border:none; padding:2px 6px; font-size:11px; border-radius:3px; cursor:pointer; margin-left:8px;">Apagar</button>
+                        </form>
+                        {% endif %}
+                    </li>
                 {% endfor %}
             </ul>
             

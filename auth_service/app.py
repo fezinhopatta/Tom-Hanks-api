@@ -288,5 +288,21 @@ def reset_password():
         cursor.close()
         conn.close()
 
+@app.route('/api/check-role/<int:user_id>', methods=['GET'])
+def check_role(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT role FROM usuarios WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if user:
+            return jsonify({'role': user['role']})
+        return jsonify({'role': 'usuario'}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

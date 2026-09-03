@@ -141,12 +141,21 @@ def index():
     cursor.execute("SELECT tmdb_movie_id FROM favoritos WHERE usuario_id = %s", (session['user_id'],))
     favoritos = {row['tmdb_movie_id'] for row in cursor.fetchall()}
     
-    cursor.execute("SELECT tmdb_movie_id, texto FROM comentarios WHERE usuario_id = %s", (session['user_id'],))
+    cursor.execute("""
+        SELECT c.id, c.tmdb_movie_id, c.texto, c.usuario_id, u.nome
+        FROM comentarios c
+        JOIN usuarios u ON c.usuario_id = u.id
+    """)
     comentarios = {}
     for row in cursor.fetchall():
         if row['tmdb_movie_id'] not in comentarios:
             comentarios[row['tmdb_movie_id']] = []
-        comentarios[row['tmdb_movie_id']].append(row['texto'])
+        comentarios[row['tmdb_movie_id']].append({
+            'id': row['id'],
+            'texto': row['texto'],
+            'usuario_id': row['usuario_id'],
+            'nome': row['nome']
+        })
         
     cursor.close()
     conn.close()
@@ -187,3 +196,47 @@ def comentar():
     cursor.close()
     conn.close()
     return redirect(url_for('index'))
+
+@app.route('/apagar_comentario/<int:comment_id>', methods=['POST'])
+def apagar_comentario(comment_id):
+    if 'user_id' not in session: 
+        return "Não autenticado", 401
+    
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    
+    # Descobrir dono do comentário
+    cursor.execute("SELECT usuario_id FROM comentarios WHERE id = %s", (comment_id,))
+    com = cursor.fetchone()
+    
+    if not com:
+        cursor.close()
+        conn.close()
+        return "Comentário não encontrado", 404
+
+    is_owner = (com['usuario_id'] == session['user_id'])
+    
+    # Checar papel do usuário no auth-service
+    try:
+        res = requests.get(f"{AUTH_SERVICE_URL}/api/check-role/{session['user_id']}", timeout=5)
+        if res.status_code == 200:
+            current_role = res.json().get('role', 'usuario')
+        else:
+            current_role = session.get('role', 'usuario')
+    except:
+        current_role = session.get('role', 'usuario')
+
+    # RBAC: dono do comentário ou admin pode apagar
+    if not is_owner and current_role != 'admin':
+        cursor.close()
+        conn.close()
+        return "403 Forbidden - Você não tem permissão para apagar este comentário.", 403
+
+    cursor.execute("DELETE FROM comentarios WHERE id = %s", (comment_id,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    
+    flash('Comentário apagado com sucesso!')
+    return redirect(url_for('index'))
+

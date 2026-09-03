@@ -98,7 +98,7 @@ networks:
 A recuperação de senha foi implementada com persistência dos tokens no MariaDB:
 
 ```sql
-CREATE TABLE IF NOT EXISTS reset_tokens (
+CREATE TABLE reset_tokens (
     id INT AUTO_INCREMENT PRIMARY KEY,
     token VARCHAR(255) NOT NULL UNIQUE,
     usuario_id INT NOT NULL,
@@ -108,6 +108,54 @@ CREATE TABLE IF NOT EXISTS reset_tokens (
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE
 );
 ```
+
+---
+
+## 🛡️ Atividade 4: RBAC (Role-Based Access Control)
+
+### 1. Permissões documentadas por papel
+
+No sistema atual, temos as seguintes permissões por papel:
+
+* **Papel `usuario`:**
+  * Pode logar no sistema.
+  * Pode pesquisar filmes do catálogo.
+  * Pode favoritar filmes.
+  * Pode adicionar comentários em filmes.
+  * **Pode apagar apenas os seus próprios comentários.**
+
+* **Papel `admin`:**
+  * Possui todas as permissões do papel `usuario`.
+  * **Pode apagar o comentário de qualquer pessoa (ação exclusiva de moderação).**
+
+### 2. Ação exclusiva de admin e Enforcement no backend
+
+A ação exclusiva implementada é a **exclusão de comentários de outros usuários**.
+O enforcement é feito no `catalog-service` que consulta o `auth-service` para verificar o papel real do usuário atual no banco de dados.
+Se um usuário comum tentar chamar o endpoint de exclusão de um comentário que não lhe pertence (por exemplo, diretamente via cURL ou Postman), o backend recusará a ação retornando um HTTP status `403 Forbidden`.
+
+### 5. Resposta curta: Padrão A ou B?
+
+**O auth-service usa hoje o Padrão A (enforcement centralizado).**
+Toda vez que a ação sensível (apagar comentário) é chamada, o catálogo faz uma requisição via rede para o `auth-service` (`/api/check-role`) para confirmar o papel do usuário.
+Se fossemos para o **Padrão B (claims no JWT)**, o catálogo não precisaria fazer essa chamada de rede extra. O próprio token JWT recebido no login já conteria a informação `role: "admin"`. O catálogo apenas decodificaria o JWT localmente e autorizaria a exclusão, tornando a requisição mais rápida, porém com a desvantagem de que uma mudança de papel demoraria a ter efeito (apenas quando o token expirasse).
+
+---
+
+## 🏃 Como rodar o projeto localmente (via Docker Compose)
+
+1. Crie um arquivo `.env` na raiz do projeto, baseado no `.env.example`:
+   ```bash
+   cp .env.example .env
+   ```
+2. Edite o `.env` e coloque sua `TMDB_API_KEY` e credenciais do Mailtrap/MariaDB.
+3. Suba os containers:
+   ```bash
+   docker compose up --build
+   ```
+4. Acesse em seu navegador: [http://localhost:5000](http://localhost:5000)
+
+> **Dica para testar o RBAC:** Crie dois usuários. Vá no banco de dados e mude o campo `role` de um deles para `admin`. O admin verá o botão "Apagar" em todos os comentários. O usuário comum verá o botão "Apagar" apenas nos seus. Tente fazer um POST para a rota `/apagar_comentario/<id>` com a sessão do usuário comum no comentário de outra pessoa, e você receberá o erro `403`.
 
 ---
 
