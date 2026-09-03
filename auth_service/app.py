@@ -79,7 +79,7 @@ def send_reset_email(to_email, reset_url):
 
     if not mail_user or not mail_pass:
         print("[Auth Service] Credenciais SMTP não configuradas. Link apenas impresso nos logs.")
-        return True
+        return True, "Simulado"
 
     try:
         msg = MIMEMultipart('alternative')
@@ -111,11 +111,11 @@ def send_reset_email(to_email, reset_url):
             server.login(mail_user, mail_pass)
             server.sendmail(mail_from, [to_email], msg.as_string())
             
-        print("[Auth Service] E-mail enviado com sucesso via SMTP Mailtrap!")
-        return True
+        print("[Auth Service] E-mail enviado com sucesso via SMTP!")
+        return True, "Enviado com sucesso"
     except Exception as e:
         print(f"[Auth Service] Erro ao enviar e-mail via SMTP: {e}")
-        return False
+        return False, str(e)
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -207,7 +207,11 @@ def forgot_password():
             conn.commit()
 
             reset_url = f"{base_url.rstrip('/')}/reset-password/{token}"
-            threading.Thread(target=send_reset_email, args=(email, reset_url), daemon=True).start()
+            sucesso, msg_erro = send_reset_email(email, reset_url)
+            
+            if not sucesso:
+                # Retorna o erro exato do SMTP para debug no frontend
+                return jsonify({'success': False, 'error': f"ERRO SMTP: {msg_erro}"}), 500
 
         return jsonify({
             'success': True,

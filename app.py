@@ -81,7 +81,10 @@ def forgot_password():
                 'base_url': base_url
             }, timeout=15)
             data = res.json()
-            flash(data.get('message', 'Solicitação processada com sucesso.'))
+            if res.status_code != 200 or not data.get('success', True):
+                flash(data.get('error', 'Erro desconhecido.'))
+            else:
+                flash(data.get('message', 'Solicitação processada com sucesso.'))
         except requests.RequestException as e:
             flash(f'Erro ao se comunicar com o serviço de autenticação: {e}')
         return redirect(url_for('login'))
