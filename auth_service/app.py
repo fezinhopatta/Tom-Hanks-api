@@ -6,11 +6,23 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import mysql.connector
+import requests
 from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'auth_default_secret')
+LOG_SERVICE_URL = os.getenv('LOG_SERVICE_URL', 'http://log-service:5000')
+
+def send_audit_log(usuario_id, acao):
+    try:
+        requests.post(f"{LOG_SERVICE_URL}/api/log", json={
+            'usuario_id': usuario_id,
+            'acao': acao,
+            'ip_origem': request.remote_addr
+        }, timeout=2)
+    except Exception as e:
+        print(f"Erro ao enviar log: {e}")
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -163,6 +175,7 @@ def login():
         user = cursor.fetchone()
         
         if user and check_password_hash(user['senha_hash'], senha):
+            send_audit_log(user['id'], 'login')
             return jsonify({
                 'success': True,
                 'user': {
@@ -172,6 +185,7 @@ def login():
                     'role': user.get('role', 'usuario')
                 }
             })
+        send_audit_log(email, 'tentativa_login_falha')
         return jsonify({'success': False, 'error': 'Credenciais inválidas.'}), 401
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

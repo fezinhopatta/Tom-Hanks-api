@@ -15,6 +15,7 @@ services:
       - SECRET_KEY=${SECRET_KEY}
       - AUTH_SERVICE_URL=http://auth-service:5000
       - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
+      - LOG_SERVICE_URL=http://log-service:5000
     networks:
       - app-network
     depends_on:
@@ -36,6 +37,24 @@ services:
       - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MAIL_FROM=${MAIL_FROM:-no-reply@tomhanks.local}
       - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
+      - LOG_SERVICE_URL=http://log-service:5000
+    networks:
+      - app-network
+
+  log-service:
+    build: ./log_service
+    container_name: log-service
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - app-network
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: redis-service
     networks:
       - app-network
 
