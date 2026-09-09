@@ -6,6 +6,18 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'default_secret')
 AUTH_SERVICE_URL = os.getenv('AUTH_SERVICE_URL', 'http://auth-service:5000')
+LOG_SERVICE_URL = os.getenv('LOG_SERVICE_URL', 'http://log-service:5000')
+
+def send_audit_log(acao, user_id=None):
+    try:
+        uid = user_id or session.get('user_id', 'anonimo')
+        requests.post(f"{LOG_SERVICE_URL}/api/log", json={
+            'usuario_id': uid,
+            'acao': acao,
+            'ip_origem': request.remote_addr
+        }, timeout=2)
+    except Exception as e:
+        print(f"Erro ao enviar log: {e}")
 
 def get_db_connection():
     return mysql.connector.connect(
@@ -67,6 +79,7 @@ def login():
 
 @app.route('/logout')
 def logout():
+    send_audit_log('logout')
     session.clear()
     return redirect(url_for('login'))
 
@@ -176,6 +189,7 @@ def favoritar():
         cursor.execute("INSERT INTO favoritos (usuario_id, tmdb_movie_id, titulo, poster_path) VALUES (%s, %s, %s, %s)", 
                        (session['user_id'], movie_id, titulo, poster_path))
         conn.commit()
+        send_audit_log(f'favoritar_filme_{movie_id}')
     except mysql.connector.IntegrityError:
         pass 
     finally:
@@ -194,6 +208,7 @@ def comentar():
     cursor.execute("INSERT INTO comentarios (usuario_id, tmdb_movie_id, texto) VALUES (%s, %s, %s)", 
                    (session['user_id'], movie_id, texto))
     conn.commit()
+    send_audit_log(f'comentar_filme_{movie_id}')
     cursor.close()
     conn.close()
     return redirect(url_for('index'))
@@ -229,15 +244,44 @@ def apagar_comentario(comment_id):
 
     # RBAC: dono do comentário ou admin pode apagar
     if not is_owner and current_role != 'admin':
+        send_audit_log(f'403_apagar_comentario_{comment_id}')
         cursor.close()
         conn.close()
         return "403 Forbidden - Você não tem permissão para apagar este comentário.", 403
 
     cursor.execute("DELETE FROM comentarios WHERE id = %s", (comment_id,))
     conn.commit()
+    send_audit_log(f'apagar_comentario_{comment_id}')
     cursor.close()
     conn.close()
     
     flash('Comentário apagado com sucesso!')
     return redirect(url_for('index'))
 
+@app.route('/admin/logs')
+def admin_logs():
+    if 'user_id' not in session: 
+        return redirect(url_for('login'))
+        
+    try:
+        res = requests.get(f"{AUTH_SERVICE_URL}/api/check-role/{session['user_id']}", timeout=5)
+        current_role = res.json().get('role', 'usuario') if res.status_code == 200 else session.get('role')
+    except:
+        current_role = session.get('role', 'usuario')
+        
+    if current_role != 'admin':
+        send_audit_log('403_acessar_logs')
+        return "403 Forbidden - Apenas administradores podem ver os logs.", 403
+
+    logs = []
+    try:
+        res = requests.get(f"{LOG_SERVICE_URL}/api/logs?limit=50", timeout=5)
+        if res.status_code == 200:
+            logs = res.json().get('logs', [])
+    except Exception as e:
+        flash(f"Erro ao buscar logs: {e}")
+        
+    return render_template('logs.html', logs=logs)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)

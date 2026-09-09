@@ -1,4 +1,4 @@
-# Catálogo de Filmes - Tom Hanks (Atividade 3: Microsserviço de Autenticação Desacoplado)
+# Catálogo de Filmes - Tom Hanks (Atividade 5: Log de Auditoria com Redis)
 
 Aplicação que consome a API do TMDB, exibe a filmografia do Tom Hanks, gerencia favoritos/comentários e possui um microsserviço de autenticação desacoplado.
 
@@ -31,6 +31,17 @@ Na **Atividade 3**, a lógica de autenticação foi **extraída para um microsse
   Usuário    PORTA │  │  catalog-service │   HTTP     │   auth-service   │  │
  (Internet)  5000  │  │  (Ponto Público) ├───────────►│ (Sem Porta Host) │  │
                    │  └────────┬─────────┘            └────────┬─────────┘  │
+                   │           │                               │            │
+                   │           ▼                               │            │
+                   │  ┌──────────────────┐                     │            │
+                   │  │   log-service    │◄────────────────────┘            │
+                   │  │ (Sem Porta Host) │                                  │
+                   │  └────────┬─────────┘                                  │
+                   │           │                                            │
+                   │           ▼                                            │
+                   │  ┌──────────────────┐                                  │
+                   │  │  redis-service   │                                  │
+                   │  └──────────────────┘                                  │
                    └───────────┼───────────────────────────────┼────────────┘
                                │                               │
                                ▼                               ▼
@@ -139,6 +150,16 @@ Se um usuário comum tentar chamar o endpoint de exclusão de um comentário que
 **O auth-service usa hoje o Padrão A (enforcement centralizado).**
 Toda vez que a ação sensível (apagar comentário) é chamada, o catálogo faz uma requisição via rede para o `auth-service` (`/api/check-role`) para confirmar o papel do usuário.
 Se fossemos para o **Padrão B (claims no JWT)**, o catálogo não precisaria fazer essa chamada de rede extra. O próprio token JWT recebido no login já conteria a informação `role: "admin"`. O catálogo apenas decodificaria o JWT localmente e autorizaria a exclusão, tornando a requisição mais rápida, porém com a desvantagem de que uma mudança de papel demoraria a ter efeito (apenas quando o token expirasse).
+
+---
+
+## 📜 Atividade 5: Log de Auditoria com Redis
+
+Foi criado um microsserviço independente (`log-service`) apoiado por um banco de dados em memória e de alta performance (`redis`) para servir como log de auditoria.
+
+*   **Responsabilidade Separada:** Em vez de poluir o banco MariaDB, as transações de auditoria ficam em uma infra de logs apropriada.
+*   **Redis Streams (`XADD` e `XREVRANGE`):** Utilizados para guardar os eventos (`login`, `logout`, `favoritar`, `comentar`, `moderação` e erros de segurança HTTP `403`), mantendo carimbos de tempo precisos nativamente e permitindo fácil recuperação cronológica.
+*   **Consulta Exclusiva para Admins:** Há um endpoint no catálogo (`/admin/logs`) que obtém os logs consolidados do `log-service` de forma protegida, assim como na Atividade 4.
 
 ---
 

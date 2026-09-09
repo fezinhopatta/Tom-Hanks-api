@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Logs de Auditoria - Tom Hanks API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background-color: #f4f4f9; color: #333; }
+        h1 { color: #2c3e50; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; background: white; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: left; }
+        th { background-color: #2980b9; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .back-link { display: inline-block; margin-bottom: 20px; color: #2980b9; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <a href="{{ url_for('index') }}" class="back-link">← Voltar ao Catálogo</a>
+    
+    <h1>Logs de Auditoria (Acesso Restrito: Admin)</h1>
+    
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul style="color: red;">
+        {% for msg in messages %}
+          <li>{{ msg }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Data/Hora (ms)</th>
+                <th>Usuário ID / Email</th>
+                <th>Ação</th>
+                <th>IP de Origem</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for log in logs %}
+            <tr>
+                <td>{{ log.timestamp_ms }}</td>
+                <td>{{ log.usuario_id }}</td>
+                <td><strong>{{ log.acao }}</strong></td>
+                <td>{{ log.ip_origem }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4" style="text-align: center;">Nenhum log encontrado.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <script>
+        // Formata o timestamp_ms para data local no client-side
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const td = row.cells[0];
+            const ms = parseInt(td.innerText);
+            if (!isNaN(ms)) {
+                td.innerText = new Date(ms).toLocaleString('pt-BR');
+            }
+        });
+    </script>
+</body>
+</html>
