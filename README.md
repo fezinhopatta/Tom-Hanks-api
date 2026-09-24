@@ -216,3 +216,42 @@ docker-compose up --build
 4. **Login com nova senha:** Faça login utilizando o e-mail e a nova senha recém-definida.
 5. **Tentativa de Reuso de Token (Recusada):** Tente acessar o mesmo link novamente. O sistema recusará com a mensagem: `"Este link de redefinição já foi utilizado."`
 6. **Tentativa com Token Expirado (Recusada):** Se o token tiver mais de 30 minutos da sua criação (`expira_em < agora`), a troca é recusada com a mensagem: `"Este link de redefinição expirou (válido por 30 minutos)."`
+---
+## 📘 Atividade Extra: Swagger/OpenAPI
+As APIs dos microsserviços **auth-service** e **log-service** foram documentadas com **Flasgger**.
+Para visualizar a documentação interativa e testar os endpoints (Try it out):
+1. Suba os containers com \docker-compose up --build\.
+2. Acesse o Swagger UI do Auth Service em: [http://localhost:5001/apidocs/](http://localhost:5001/apidocs/)
+3. Acesse o Swagger UI do Log Service em: [http://localhost:5002/apidocs/](http://localhost:5002/apidocs/)
+*(As portas 5001 e 5002 foram abertas temporariamente no \docker-compose.yml\ para permitir o acesso do host ao Swagger)*
+O arquivo \openapi.json\ pode ser obtido ao adicionar \pispec_1.json\ na URL respectiva.
+
+---
+## 📘 Atividade Extra: Swagger/OpenAPI
+As APIs dos microsserviços **auth-service** e **log-service** foram documentadas com **Flasgger**.
+Para visualizar a documentação interativa e testar os endpoints (Try it out):
+1. Suba os containers com `docker-compose up --build`.
+2. Acesse o Swagger UI do Auth Service em: [http://localhost:5001/apidocs/](http://localhost:5001/apidocs/)
+3. Acesse o Swagger UI do Log Service em: [http://localhost:5002/apidocs/](http://localhost:5002/apidocs/)
+*(As portas 5001 e 5002 foram abertas temporariamente no `docker-compose.yml` para permitir o acesso do host ao Swagger)*
+O arquivo `openapi.json` pode ser obtido ao acessar `http://localhost:5001/apispec_1.json` ou `http://localhost:5002/apispec_1.json`.
+
+
+---
+
+## 🖼️ Atividade 6: Upload e Perfil de Usuário com MinIO
+
+O Catálogo agora conta com uma funcionalidade de rede social: cada usuário tem o seu **Perfil**. O perfil exibe a biografia, os filmes favoritados e uma **foto de perfil** (avatar).
+
+### 🏗️ Arquitetura de Upload e Decisão Técnica
+
+Em vez de armazenar o arquivo binário (BLOB) da imagem dentro do MariaDB — o que tornaria o banco lento e pesado —, a imagem vai para um **Object Storage (MinIO)** dedicado na rede Docker, e o banco guarda apenas a URL (referência) da imagem (`avatar_url`).
+
+### ⚖️ Trade-off Documentado: Bucket Público vs. URL Pré-assinada
+
+Para exibir as imagens de perfil, decidi utilizar **Bucket com Leitura Pública** em vez de gerar URLs pré-assinadas (Presigned URLs).
+**Justificativa:** Em um contexto de rede social ou sistema de catálogos abertos, a foto de perfil geralmente não é um dado sigiloso restrito apenas a sessões ativas (como seria um documento pessoal ou extrato bancário). Um bucket público permite que a imagem seja cacheada por CDNs e navegadores, reduzindo a carga computacional no microsserviço (que não precisa re-assinar a URL a cada requisição ou gerenciar tempo de expiração) e garantindo maior performance na renderização de milhares de perfis.
+
+### 🛡️ Controle de Acesso (RBAC)
+
+A rota `/perfil/<id>` suporta validação de identidade: **somente o próprio usuário (dono do perfil)** pode submeter um novo avatar ou atualizar sua biografia. Qualquer requisição com ID diferente do usuário logado é imediatamente recusada com `403 Forbidden`.

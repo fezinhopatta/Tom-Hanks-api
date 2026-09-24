@@ -8,9 +8,11 @@ from email.mime.multipart import MIMEMultipart
 import mysql.connector
 import requests
 from flask import Flask, request, jsonify
+from flasgger import Swagger
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+swagger = Swagger(app, template={'info': {'title': 'Auth Service API', 'version': '1.0.0'}})
 app.secret_key = os.getenv('SECRET_KEY', 'auth_default_secret')
 LOG_SERVICE_URL = os.getenv('LOG_SERVICE_URL', 'http://log-service:5000')
 
@@ -45,7 +47,9 @@ def init_db():
                 nome VARCHAR(100) NOT NULL,
                 email VARCHAR(100) NOT NULL UNIQUE,
                 senha_hash VARCHAR(255) NOT NULL,
-                role VARCHAR(20) NOT NULL DEFAULT 'usuario'
+                role VARCHAR(20) NOT NULL DEFAULT 'usuario',
+                bio TEXT,
+                avatar_url VARCHAR(255)
             ) ENGINE=InnoDB;
         """)
         
@@ -55,6 +59,19 @@ def init_db():
             conn.commit()
         except mysql.connector.Error:
             pass # Coluna já existe
+
+        # Adiciona a coluna 'bio' e 'avatar_url' caso a tabela já existia sem ela
+        try:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN bio TEXT")
+            conn.commit()
+        except mysql.connector.Error:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN avatar_url VARCHAR(255)")
+            conn.commit()
+        except mysql.connector.Error:
+            pass
 
         # Tabela reset_tokens
         cursor.execute("""
@@ -131,6 +148,34 @@ def send_reset_email(to_email, reset_url):
 
 @app.route('/api/register', methods=['POST'])
 def register():
+    """
+    Registra um novo usuário no sistema
+    ---
+    tags:
+      - Autenticação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            nome:
+              type: string
+            email:
+              type: string
+            senha:
+              type: string
+            role:
+              type: string
+    responses:
+      201:
+        description: Usuário registrado com sucesso
+      400:
+        description: Erro de validação ou email já existente
+      500:
+        description: Erro interno
+    """
     data = request.get_json() or request.form
     nome = data.get('nome')
     email = data.get('email')
@@ -161,6 +206,30 @@ def register():
 
 @app.route('/api/login', methods=['POST'])
 def login():
+    """
+    Autentica um usuário e retorna seus dados
+    ---
+    tags:
+      - Autenticação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+            senha:
+              type: string
+    responses:
+      200:
+        description: Login realizado com sucesso
+      400:
+        description: Dados insuficientes
+      401:
+        description: Credenciais inválidas
+    """
     data = request.get_json() or request.form
     email = data.get('email')
     senha = data.get('senha')
@@ -195,6 +264,26 @@ def login():
 
 @app.route('/api/forgot-password', methods=['POST'])
 def forgot_password():
+    """
+    Solicita recuperação de senha e envia e-mail com token
+    ---
+    tags:
+      - Recuperação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            email:
+              type: string
+    responses:
+      200:
+        description: E-mail de recuperação enviado (ou falso positivo se não existir)
+      400:
+        description: E-mail não fornecido
+    """
     data = request.get_json() or request.form
     email = data.get('email')
     base_url = data.get('base_url') or os.getenv('APP_URL', 'http://localhost:5000')
@@ -235,6 +324,28 @@ def forgot_password():
 
 @app.route('/api/verify-token', methods=['POST'])
 def verify_token():
+    """
+    Verifica a validade de um token de redefinição de senha
+    ---
+    tags:
+      - Recuperação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            token:
+              type: string
+    responses:
+      200:
+        description: Token válido
+      400:
+        description: Token não fornecido
+      404:
+        description: Token inválido, expirado ou já utilizado
+    """
     data = request.get_json() or request.form
     token = data.get('token')
 
@@ -265,6 +376,30 @@ def verify_token():
 
 @app.route('/api/reset-password', methods=['POST'])
 def reset_password():
+    """
+    Redefine a senha de um usuário utilizando um token válido
+    ---
+    tags:
+      - Recuperação
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            token:
+              type: string
+            nova_senha:
+              type: string
+    responses:
+      200:
+        description: Senha redefinida com sucesso
+      400:
+        description: Dados incompletos
+      404:
+        description: Token inválido ou expirado
+    """
     data = request.get_json() or request.form
     token = data.get('token')
     nova_senha = data.get('nova_senha')
@@ -304,6 +439,23 @@ def reset_password():
 
 @app.route('/api/check-role/<int:user_id>', methods=['GET'])
 def check_role(user_id):
+    """
+    Consulta o papel (role) de um usuário específico
+    ---
+    tags:
+      - Autorização
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+        description: ID do usuário
+    responses:
+      200:
+        description: Role retornado com sucesso
+      404:
+        description: Usuário não encontrado
+    """
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
