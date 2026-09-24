@@ -1,8 +1,10 @@
 import os
 import redis
 from flask import Flask, request, jsonify
+from flasgger import Swagger
 
 app = Flask(__name__)
+swagger = Swagger(app, template={'info': {'title': 'Log Service API', 'version': '1.0.0'}})
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'redis')
 REDIS_PORT = int(os.getenv('REDIS_PORT', 6379))
@@ -12,6 +14,32 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 @app.route('/api/log', methods=['POST'])
 def add_log():
+    """
+    Adiciona um novo log de auditoria
+    ---
+    tags:
+      - Auditoria
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            usuario_id:
+              type: string
+            acao:
+              type: string
+            ip_origem:
+              type: string
+    responses:
+      201:
+        description: Log registrado com sucesso
+      400:
+        description: Erro de validação
+      500:
+        description: Erro interno
+    """
     data = request.get_json()
     if not data:
         return jsonify({'error': 'No data provided'}), 400
@@ -38,6 +66,23 @@ def add_log():
 
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
+    """
+    Recupera os últimos logs de auditoria
+    ---
+    tags:
+      - Auditoria
+    parameters:
+      - in: query
+        name: limit
+        type: integer
+        required: false
+        description: Limite de logs a retornar (padrão 100)
+    responses:
+      200:
+        description: Lista de logs retornada com sucesso
+      500:
+        description: Erro interno
+    """
     limit = int(request.args.get('limit', 100))
     try:
         # XREVRANGE to get logs in descending order (newest first)

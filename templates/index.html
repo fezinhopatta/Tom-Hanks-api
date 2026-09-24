@@ -12,6 +12,7 @@
         <div class="user-bar">Olá, {{ session['nome'] }} {% if session.get('role') %}<span class="badge" style="background:#e9ecef; padding:2px 6px; border-radius:4px; font-size:0.8em; margin-right:6px;">({{ session['role'] }})</span>{% endif %}{% if session.get('role') == 'admin' %}
             <a href="{{ url_for('admin_logs') }}" style="color: yellow; margin-right: 15px;">Ver Logs (Admin)</a>
         {% endif %}
+        <a href="{{ url_for('perfil', user_id=session.get('user_id')) }}" style="margin-right: 15px;">Meu Perfil</a>
         <a href="{{ url_for('logout') }}">Sair</a></div>
     </header>
     <main class="page-shell">

@@ -16,15 +16,20 @@ services:
       - AUTH_SERVICE_URL=http://auth-service:5000
       - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
       - LOG_SERVICE_URL=http://log-service:5000
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
     networks:
       - app-network
     depends_on:
       - auth-service
+      - minio
 
   auth-service:
     build: ./auth_service
     container_name: auth-service
-    # Sem publicação de portas para o host (acessível apenas na rede interna do Docker)
+    ports:
+      - "5001:5000"
     environment:
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
@@ -44,6 +49,8 @@ services:
   log-service:
     build: ./log_service
     container_name: log-service
+    ports:
+      - "5002:5000"
     environment:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -57,6 +64,34 @@ services:
     container_name: redis-service
     networks:
       - app-network
+
+  minio:
+    image: minio/minio
+    container_name: minio-service
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    command: server /data --console-address ":9001"
+    networks:
+      - app-network
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    networks:
+      - app-network
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5;
+      mc alias set myminio http://minio:9000 minioadmin minioadmin;
+      mc mb myminio/perfil;
+      mc anonymous set public myminio/perfil;
+      exit 0;
+      "
 
 networks:
   app-network:
