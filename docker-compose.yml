@@ -67,7 +67,7 @@ services:
       - app-network
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: minio-service
     restart: unless-stopped
     ports:
@@ -83,7 +83,7 @@ services:
       - app-network
 
   createbuckets:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:latest
     depends_on:
       - minio
     restart: "no"
