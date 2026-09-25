@@ -9,11 +9,17 @@ from werkzeug.utils import secure_filename
 import io
 import uuid
 
-MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'localhost:9000')
-MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
-MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minioadmin')
-MINIO_PUBLIC_URL = os.getenv('MINIO_PUBLIC_URL', 'http://localhost:9000')
-MINIO_BUCKET = 'perfil'
+MINIO_HOST = os.getenv('MINIO_ENDPOINT', 'minio')
+MINIO_PORT = os.getenv('MINIO_PORT', '9000')
+if ':' in MINIO_HOST:
+    MINIO_ENDPOINT = MINIO_HOST
+else:
+    MINIO_ENDPOINT = f"{MINIO_HOST}:{MINIO_PORT}"
+
+MINIO_ACCESS_KEY = os.getenv('MINIO_ROOT_USER', os.getenv('MINIO_ACCESS_KEY', 'minioadmin'))
+MINIO_SECRET_KEY = os.getenv('MINIO_ROOT_PASSWORD', os.getenv('MINIO_SECRET_KEY', 'minioadmin123'))
+MINIO_PUBLIC_URL = os.getenv('MINIO_PUBLIC_URL', 'http://localhost:9010')
+MINIO_BUCKET = os.getenv('MINIO_BUCKET', 'perfil-fotos')
 
 try:
     minio_client = Minio(
@@ -380,7 +386,10 @@ def perfil(user_id):
                     content_type=foto.content_type
                 )
                 # URL pública direta via browser
-                avatar_url = f"{MINIO_PUBLIC_URL.rstrip('/')}/{MINIO_BUCKET}/{object_name}"
+                base_public = MINIO_PUBLIC_URL.rstrip('/')
+                if not base_public.startswith(('http://', 'https://', '//')):
+                    base_public = f"http://{base_public}"
+                avatar_url = f"{base_public}/{MINIO_BUCKET}/{object_name}"
             except Exception as e:
                 flash(f"Erro ao salvar imagem no MinIO: {e}")
                 return redirect(url_for('perfil', user_id=user_id))
