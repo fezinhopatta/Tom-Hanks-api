@@ -71,7 +71,7 @@ services:
   # MinIO - Object Storage S3-compatível para arquivos de usuário (fotos de perfil)
   # Console web: http://localhost:9011 | API S3: http://localhost:9010
   minio:
-    image: minio/minio:latest
+    image: elestio/minio:latest
     container_name: tomhanks_minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
