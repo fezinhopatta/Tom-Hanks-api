@@ -358,6 +358,20 @@ def perfil(user_id):
             object_name = f"avatar_{user_id}_{uuid.uuid4().hex}.{ext}"
             
             try:
+                if not minio_client.bucket_exists(MINIO_BUCKET):
+                    minio_client.make_bucket(MINIO_BUCKET)
+                    import json
+                    policy = {
+                        "Version": "2012-10-17",
+                        "Statement": [{
+                            "Effect": "Allow",
+                            "Principal": {"AWS": ["*"]},
+                            "Action": ["s3:GetObject"],
+                            "Resource": [f"arn:aws:s3:::{MINIO_BUCKET}/*"]
+                        }]
+                    }
+                    minio_client.set_bucket_policy(MINIO_BUCKET, json.dumps(policy))
+
                 minio_client.put_object(
                     MINIO_BUCKET,
                     object_name,
