@@ -12,6 +12,7 @@ import uuid
 MINIO_ENDPOINT = os.getenv('MINIO_ENDPOINT', 'localhost:9000')
 MINIO_ACCESS_KEY = os.getenv('MINIO_ACCESS_KEY', 'minioadmin')
 MINIO_SECRET_KEY = os.getenv('MINIO_SECRET_KEY', 'minioadmin')
+MINIO_PUBLIC_URL = os.getenv('MINIO_PUBLIC_URL', 'http://localhost:9000')
 MINIO_BUCKET = 'perfil'
 
 try:
@@ -308,8 +309,6 @@ def admin_logs():
         
     return render_template('logs.html', logs=logs)
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
 
 
 @app.route('/perfil/<int:user_id>', methods=['GET', 'POST'])
@@ -367,7 +366,7 @@ def perfil(user_id):
                     content_type=foto.content_type
                 )
                 # URL pública direta via browser
-                avatar_url = f"http://localhost:9000/{MINIO_BUCKET}/{object_name}"
+                avatar_url = f"{MINIO_PUBLIC_URL.rstrip('/')}/{MINIO_BUCKET}/{object_name}"
             except Exception as e:
                 flash(f"Erro ao salvar imagem no MinIO: {e}")
                 return redirect(url_for('perfil', user_id=user_id))
@@ -387,3 +386,7 @@ def perfil(user_id):
     conn.close()
     
     return render_template('perfil.html', usuario=usuario, favoritos=favoritos_lista, is_owner=is_owner)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
