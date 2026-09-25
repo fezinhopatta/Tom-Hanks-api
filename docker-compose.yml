@@ -17,8 +17,9 @@ services:
       - APP_URL=${APP_URL:-http://localhost:${PORTA_ALUNO:-5000}}
       - LOG_SERVICE_URL=http://log-service:5000
       - MINIO_ENDPOINT=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-minioadmin}
+      - MINIO_PUBLIC_URL=${MINIO_PUBLIC_URL:-http://localhost:9000}
     networks:
       - app-network
     depends_on:
@@ -68,13 +69,16 @@ services:
   minio:
     image: minio/minio:latest
     container_name: minio-service
+    restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      - MINIO_ROOT_USER=minioadmin
-      - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-minioadmin}
     command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
     networks:
       - app-network
 
@@ -82,17 +86,25 @@ services:
     image: minio/mc:latest
     depends_on:
       - minio
+    restart: "no"
     networks:
       - app-network
     entrypoint: >
       /bin/sh -c "
-      sleep 5;
-      mc alias set myminio http://minio:9000 minioadmin minioadmin;
-      mc mb myminio/perfil;
+      until (/usr/bin/mc alias set myminio http://minio:9000 $${MINIO_ROOT_USER:-minioadmin} $${MINIO_ROOT_PASSWORD:-minioadmin}); do
+        echo 'Aguardando inicializacao do MinIO...';
+        sleep 2;
+      done;
+      mc mb --ignore-existing myminio/perfil;
       mc anonymous set public myminio/perfil;
+      echo 'Bucket perfil configurado com sucesso!';
       exit 0;
       "
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  minio_data:
+    driver: local
