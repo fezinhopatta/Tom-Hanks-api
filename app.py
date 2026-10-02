@@ -1,7 +1,7 @@
 import os
 import requests
 import mysql.connector
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, abort
 
 
 from minio import Minio
@@ -387,11 +387,8 @@ def perfil(user_id):
                     len(file_data),
                     content_type=foto.content_type
                 )
-                # URL pública direta via browser
-                base_public = MINIO_PUBLIC_URL.rstrip('/')
-                if not base_public.startswith(('http://', 'https://', '//')):
-                    base_public = f"http://{base_public}"
-                avatar_url = f"{base_public}/{MINIO_BUCKET}/{object_name}"
+                # URL roteada pelo próprio Flask para contornar o firewall
+                avatar_url = url_for('serve_avatar', filename=object_name)
             except Exception as e:
                 flash(f"Erro ao salvar imagem no MinIO: {e}")
                 return redirect(url_for('perfil', user_id=user_id))
@@ -413,6 +410,18 @@ def perfil(user_id):
     conn.close()
     
     return render_template('perfil.html', usuario=usuario, favoritos=favoritos_lista, is_owner=is_owner)
+
+@app.route('/avatar/<filename>')
+def serve_avatar(filename):
+    try:
+        response = minio_client.get_object(MINIO_BUCKET, filename)
+        file_data = response.read()
+        response.close()
+        response.release_conn()
+        return send_file(io.BytesIO(file_data), mimetype='image/jpeg')
+    except Exception as e:
+        print(f"Erro ao buscar avatar no MinIO: {e}")
+        abort(404)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
