@@ -251,7 +251,8 @@ def login():
                     'id': user['id'],
                     'nome': user['nome'],
                     'email': user['email'],
-                    'role': user.get('role', 'usuario')
+                    'role': user.get('role', 'usuario'),
+                    'avatar_url': user.get('avatar_url')
                 }
             })
         send_audit_log(email, 'tentativa_login_falha')
