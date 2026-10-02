@@ -101,6 +101,7 @@ def login():
                 session['user_id'] = user.get('id')
                 session['nome'] = user.get('nome')
                 session['role'] = user.get('role', 'usuario')
+                session['avatar_url'] = user.get('avatar_url')
                 return redirect(url_for('index'))
             else:
                 flash(data.get('error', 'Credenciais inválidas.'))
@@ -341,6 +342,7 @@ def perfil(user_id):
             send_audit_log(f'403_editar_perfil_{user_id}')
             return "403 Forbidden - Você não tem permissão para editar este perfil.", 403
             
+        nome = request.form.get('nome') or usuario['nome']
         bio = request.form.get('bio')
         foto = request.files.get('foto')
         
@@ -395,8 +397,10 @@ def perfil(user_id):
                 return redirect(url_for('perfil', user_id=user_id))
                 
         # Atualizar banco
-        cursor.execute("UPDATE usuarios SET bio = %s, avatar_url = %s WHERE id = %s", (bio, avatar_url, user_id))
+        cursor.execute("UPDATE usuarios SET nome = %s, bio = %s, avatar_url = %s WHERE id = %s", (nome, bio, avatar_url, user_id))
         conn.commit()
+        session['nome'] = nome
+        session['avatar_url'] = avatar_url
         send_audit_log(f'editar_perfil_{user_id}')
         flash("Perfil atualizado com sucesso!")
         return redirect(url_for('perfil', user_id=user_id))

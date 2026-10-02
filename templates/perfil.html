@@ -15,12 +15,17 @@
     <div class="container">
         <a class="navbar-brand" href="{{ url_for('index') }}">Catálogo Tom Hanks</a>
         <div class="collapse navbar-collapse justify-content-end">
-            <ul class="navbar-nav">
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('perfil', user_id=session.get('user_id')) }}">Meu Perfil</a>
+            <ul class="navbar-nav align-items-center">
+                <li class="nav-item d-flex align-items-center me-3">
+                    {% if session.get('avatar_url') %}
+                        <img src="{{ session.get('avatar_url') }}" alt="Avatar" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
+                    {% else %}
+                        <img src="https://ui-avatars.com/api/?name={{ session.get('nome') }}&size=30" alt="Avatar Padrão" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
+                    {% endif %}
+                    <a class="nav-link" href="{{ url_for('perfil', user_id=session.get('user_id')) }}" style="padding-left: 0;">{{ session.get('nome') }} (Meu Perfil)</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('logout') }}">Sair ({{ session.get('nome') }})</a>
+                    <a class="nav-link" href="{{ url_for('logout') }}">Sair</a>
                 </li>
             </ul>
         </div>
@@ -94,6 +99,11 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
+            
+            <div class="mb-3">
+                <label for="nome" class="form-label">Nome</label>
+                <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}" required>
+            </div>
             
             <div class="mb-3">
                 <label for="bio" class="form-label">Sobre mim (Bio)</label>
