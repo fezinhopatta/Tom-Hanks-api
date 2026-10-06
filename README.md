@@ -4,6 +4,8 @@ Aplicação que consome a API do TMDB, exibe a filmografia do Tom Hanks, gerenci
 
 **Professor responsável:** [@siriani](https://github.com/siriani)
 
+**Arquivo relatorio para P1**[Clique aqui para acessar](./P1_ISW055_Victor_Siveri.pdf)
+
 ---
 
 ## 🚀 O que mudou nesta Atividade (Atividade 3)
