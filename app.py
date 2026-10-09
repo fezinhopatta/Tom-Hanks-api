@@ -366,11 +366,23 @@ def checkout():
     price_id = os.getenv('STRIPE_PRICE_ID')
     
     try:
-        # Se um STRIPE_PRICE_ID foi cadastrado no Stripe Dashboard, usa ele.
-        # Caso contrário, utiliza produto mensal dinâmico de R$ 9,90/mês
+        target_price = None
         if price_id and price_id.strip():
+            raw_id = price_id.strip()
+            if raw_id.startswith('prod_'):
+                # Usuário forneceu o ID do produto em vez do preço; resolve automaticamente via API
+                try:
+                    prices = stripe.Price.list(product=raw_id, active=True, limit=1)
+                    if prices.data:
+                        target_price = prices.data[0].id
+                except Exception as e:
+                    print(f"[Stripe] Aviso ao buscar preço do produto {raw_id}: {e}")
+            else:
+                target_price = raw_id
+
+        if target_price:
             line_items = [{
-                'price': price_id.strip(),
+                'price': target_price,
                 'quantity': 1,
             }]
         else:
@@ -390,7 +402,6 @@ def checkout():
             }]
 
         checkout_session = stripe.checkout.Session.create(
-            payment_method_types=['card'],
             line_items=line_items,
             mode='subscription',
             customer_email=usuario['email'] if usuario else None,
