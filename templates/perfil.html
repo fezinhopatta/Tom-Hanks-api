@@ -23,6 +23,11 @@
                         <img src="https://ui-avatars.com/api/?name={{ session.get('nome') }}&size=30" alt="Avatar Padrão" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
                     {% endif %}
                     <a class="nav-link" href="{{ url_for('perfil', user_id=session.get('user_id')) }}" style="padding-left: 0;">{{ session.get('nome') }} (Meu Perfil)</a>
+                    {% if session.get('is_premium') %}
+                        <span class="badge ms-2" style="background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; font-weight: bold; padding: 4px 10px; border-radius: 12px; font-size: 0.75em; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);">⭐ PREMIUM</span>
+                    {% else %}
+                        <a href="{{ url_for('checkout') }}" class="badge ms-2 text-decoration-none" style="background: #28a745; color: white; padding: 4px 8px; border-radius: 12px; font-size: 0.75em;">⚡ Virar Premium</a>
+                    {% endif %}
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('logout') }}">Sair</a>
@@ -52,20 +57,50 @@
                 {% endif %}
                 
                 <h3>{{ usuario.nome }}</h3>
-                <p class="text-muted">{{ usuario.email }}</p>
-                <p>{{ usuario.bio if usuario.bio else 'Nenhuma bio definida ainda.' }}</p>
+                <p class="text-muted mb-1">{{ usuario.email }}</p>
+
+                {% if usuario.is_premium %}
+                <div class="mt-2 mb-2">
+                    <span class="badge" style="background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; font-size: 0.9em; padding: 6px 14px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 6px rgba(255, 215, 0, 0.4);">
+                        ⭐ ASSINANTE PREMIUM
+                    </span>
+                </div>
+                <p class="text-success small fw-bold mb-2">Benefício Ativo: Favoritos Ilimitados</p>
+                {% endif %}
+
+                <p class="mt-2">{{ usuario.bio if usuario.bio else 'Nenhuma bio definida ainda.' }}</p>
 
                 {% if is_owner %}
-                <button class="btn btn-outline-primary btn-sm mt-3" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                <button class="btn btn-outline-primary btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#editProfileModal">
                     Editar Perfil
                 </button>
+
+                {% if not usuario.is_premium %}
+                <div class="card bg-light border-warning mt-4 p-3 text-start shadow-sm">
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="fs-5 me-2">⭐</span>
+                        <h6 class="text-warning-emphasis fw-bold mb-0">Plano Premium</h6>
+                    </div>
+                    <p class="small text-muted mb-2">Desbloqueie <strong>favoritos ilimitados</strong> e receba o selo VIP por apenas <strong>R$ 9,90/mês</strong>.</p>
+                    <a href="{{ url_for('checkout') }}" class="btn btn-warning btn-sm w-100 fw-bold">
+                        ⚡ Assinar com Stripe
+                    </a>
+                </div>
+                {% endif %}
                 {% endif %}
             </div>
         </div>
 
         <!-- Coluna da Direita: Favoritos -->
         <div class="col-md-8">
-            <h4 class="mb-4">Filmes Favoritos</h4>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="mb-0">Filmes Favoritos</h4>
+                {% if usuario.is_premium %}
+                    <span class="badge bg-warning text-dark fs-6">Ilimitado ⭐ ({{ favoritos|length }})</span>
+                {% else %}
+                    <span class="badge bg-secondary fs-6">{{ favoritos|length }} / 5 (Plano Free)</span>
+                {% endif %}
+            </div>
             <div class="row">
                 {% for fav in favoritos %}
                 <div class="col-md-4 col-sm-6 mb-3">
@@ -76,7 +111,13 @@
                             <img src="https://via.placeholder.com/200x300?text=Sem+Poster" class="card-img-top" alt="{{ fav.titulo }}">
                         {% endif %}
                         <div class="card-body p-2 text-center">
-                            <h6 class="card-title mb-0">{{ fav.titulo }}</h6>
+                            <h6 class="card-title mb-1">{{ fav.titulo }}</h6>
+                            {% if is_owner %}
+                            <form action="{{ url_for('desfavoritar') }}" method="POST" class="mt-2">
+                                <input type="hidden" name="movie_id" value="{{ fav.tmdb_movie_id }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm py-0" style="font-size: 0.75rem;">Remover</button>
+                            </form>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

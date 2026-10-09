@@ -257,3 +257,114 @@ Para exibir as imagens de perfil, decidi utilizar **Bucket com Leitura Pública*
 ### 🛡️ Controle de Acesso (RBAC)
 
 A rota `/perfil/<id>` suporta validação de identidade: **somente o próprio usuário (dono do perfil)** pode submeter um novo avatar ou atualizar sua biografia. Qualquer requisição com ID diferente do usuário logado é imediatamente recusada com `403 Forbidden`.
+
+---
+
+## 💳 Atividade 7: Plano Premium — Cobrança de Verdade com Stripe (Modo de Teste)
+
+O catálogo ganha um modelo de negócio sustentável: um **Plano Premium pago** cobrado de forma real em **modo de teste** através de um provedor de pagamentos global (**Stripe**).
+
+### 💡 Por que Pagamento é um Serviço à Parte?
+Armazenar dados de cartão de crédito no próprio banco de dados exige um nível extremo de segurança e conformidade legal e regulatória (**PCI-DSS - Payment Card Industry Data Security Standard**). Para evitar responsabilidades de risco cibernético, vazamento de dados bancários e auditorias complexas, a solução do mercado moderno é:
+1. **Delegar a interface de pagamento:** O próprio Stripe hospeda a tela segura de checkout onde o cartão é inserido. Nosso backend nunca tem contato com número de cartão, validade ou código de segurança (CVV).
+2. **Comunicação Assíncrona via Webhooks:** Em vez de confiar em um retorno imediato do navegador (que pode ser fechado, desconectado ou manipulado), a confirmação do pagamento chega através de um **Webhook assinado** enviado diretamente dos servidores do Stripe para o nosso backend.
+
+```
+   ┌──────────┐                     ┌───────────────┐                  ┌──────────────┐
+   │ Usuário  │ ── 1. Clica Assinar ──►│ Catalog App   │ ── 2. Cria Sessão──►│ Stripe API   │
+   │ (Cliente)│                     │ (Backend)     │                  │              │
+   └────┬─────┘                     └───────┬───────┘                  └──────┬───────┘
+        │                                   │                                 │
+        │◄── 3. Redireciona (HTTP 303) ─────┘                                 │
+        │                                                                     │
+        │────────────────────── 4. Digita Cartão na Página Hospedada ────────►│
+        │                                                                     │
+        │                                   ┌───────────────┐                 │
+        │                                   │  MariaDB / DB │                 │
+        │                                   └───────▲───────┘                 │
+        │                                           │ (Atualiza is_premium=1) │
+        │                                   ┌───────┴───────┐                 │
+        │                                   │ Catalog App   │◄── 5. Webhook ──┘
+        │                                   │ (/webhook/stripe) (Assíncrono)
+        │◄── 6. Redireciona Sucesso ────────┴───────────────┘
+```
+
+---
+
+### ⚙️ O que foi Implementado
+
+#### 1. Plano no Stripe e Configuração em Modo de Teste
+- Suporte a `STRIPE_PRICE_ID` configurado no painel do Stripe (ex: produto *"Plano Premium — R$ 9,90/mês"*).
+- Fallback automático inteligente: caso `STRIPE_PRICE_ID` não seja especificado no `.env`, o backend cria dinamicamente o item de assinatura recorrente mensal de R$ 9,90 via `price_data`, facilitando os testes imediatos.
+
+#### 2. Endpoint de Checkout (`/checkout` e `/stripe/checkout`)
+- Cria uma `stripe.checkout.Session` com `mode='subscription'`, `client_reference_id` com o ID do usuário logado e metadados.
+- Redireciona com código HTTP `303 See Other` para a página hospedada pelo Stripe.
+- Rotas de retorno tratadas: `/checkout/sucesso` e `/checkout/cancelado`.
+
+#### 3. Endpoint de Webhook com Validação Criptográfica (`/webhook/stripe`)
+- Recebe os eventos assíncronos do Stripe.
+- **Validação de Assinatura:** O cabeçalho `Stripe-Signature` é rigorosamente verificado com `stripe.Webhook.construct_event(payload, sig_header, endpoint_secret)`. Requisições forjadas ou sem assinatura válida são rejeitadas com `400 Bad Request`.
+- **Processamento de Eventos:**
+  - `checkout.session.completed`: Identifica o usuário e marca `is_premium = 1`, além de armazenar o `stripe_customer_id` e o `stripe_subscription_id`. Dispara log de auditoria.
+  - `customer.subscription.deleted`: Em caso de cancelamento da assinatura no Stripe, rebaixa o usuário para `is_premium = 0` automaticamente.
+
+#### 4. Benefício Real e Verificável do Plano Premium
+Existe uma diferença de comportamento clara e comprovável entre usuário comum e usuário Premium:
+- **Usuário Gratuito (Não-Premium):**
+  - Limitado a **no máximo 5 filmes favoritos**.
+  - Tentativas de favoritar o 6º filme são bloqueadas pelo backend, registrando log de auditoria `403_limite_favoritos_atingido` e exibindo mensagem flash com convite de upgrade.
+  - Banner na tela inicial exibindo o consumo da cota (ex: *Favoritos: 3 de 5 disponíveis*).
+- **Usuário Premium:**
+  - **Favoritos Ilimitados:** pode favoritar quantos filmes desejar sem nenhum bloqueio.
+  - **Selo VIP Dourado (`⭐ VIP PREMIUM` / `⭐ ASSINANTE PREMIUM`):** exibido com destaque na barra superior e no perfil social do usuário.
+  - Informações de status ativo visíveis no perfil.
+- **Gerenciamento:** Adicionada a funcionalidade `/desfavoritar` para permitir remover filmes e gerenciar a cota de favoritos.
+
+#### 5. Conformidade PCI-DSS e Proteção de Dados
+- **Nenhum dado de cartão de crédito** (número, CVV, data de expiração ou senha) trafega ou é gravado no banco de dados.
+- O banco armazena unicamente identificadores de referência do próprio Stripe (`stripe_customer_id` e `stripe_subscription_id`).
+
+---
+
+### 🧪 Como Testar o Fluxo do Stripe
+
+#### 1. Configurar as Chaves no `.env`
+No seu `.env`, defina as credenciais de teste obtidas na sua conta do Stripe Dashboard (Test Mode):
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_PRICE_ID=price_... # Opcional
+```
+
+#### 2. Cartões de Teste Oficiais do Stripe
+Ao ser redirecionado para a tela de checkout do Stripe, utilize os cartões de simulação:
+* **Número do Cartão:** `4242 4242 4242 4242`
+* **Validade:** Qualquer data futura (ex: `12/30`)
+* **CVC:** Qualquer 3 dígitos (ex: `123`)
+* **Nome e CEP:** Qualquer informação fictícia
+
+#### 3. Encaminhando Webhooks Localmente (Stripe CLI)
+Para receber os webhooks do Stripe no ambiente de desenvolvimento local:
+```bash
+# Faça login no Stripe CLI
+stripe login
+
+# Encaminhe os eventos para o container do catálogo
+stripe listen --forward-to localhost:5000/webhook/stripe
+```
+Copie o `webhook signing secret` gerado no terminal (começa com `whsec_...`) e cole na variável `STRIPE_WEBHOOK_SECRET` do seu `.env`.
+
+#### 4. Executar os Testes Automatizados
+O projeto conta com suíte de testes automatizados cobrindo todas as regras:
+```bash
+python test_stripe_integration.py
+```
+Testes inclusos:
+- Verificação de registro de todas as rotas;
+- Rejeição de assinaturas inválidas com HTTP 400;
+- Aceitação e parsing seguro de eventos assinados;
+- Bloqueio comprovado de limite de 5 favoritos para usuários comuns;
+- Liberação irrestrita de favoritos para usuários Premium.
+

@@ -73,6 +73,25 @@ def init_db():
         except mysql.connector.Error:
             pass
 
+        # Adiciona colunas para controle do Plano Premium Stripe
+        try:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN is_premium BOOLEAN NOT NULL DEFAULT 0")
+            conn.commit()
+        except mysql.connector.Error:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN stripe_customer_id VARCHAR(255)")
+            conn.commit()
+        except mysql.connector.Error:
+            pass
+
+        try:
+            cursor.execute("ALTER TABLE usuarios ADD COLUMN stripe_subscription_id VARCHAR(255)")
+            conn.commit()
+        except mysql.connector.Error:
+            pass
+
         # Tabela reset_tokens
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS reset_tokens (
@@ -252,7 +271,8 @@ def login():
                     'nome': user['nome'],
                     'email': user['email'],
                     'role': user.get('role', 'usuario'),
-                    'avatar_url': user.get('avatar_url')
+                    'avatar_url': user.get('avatar_url'),
+                    'is_premium': bool(user.get('is_premium', 0))
                 }
             })
         send_audit_log(email, 'tentativa_login_falha')
@@ -460,11 +480,51 @@ def check_role(user_id):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
-        cursor.execute("SELECT role FROM usuarios WHERE id = %s", (user_id,))
+        cursor.execute("SELECT role, is_premium FROM usuarios WHERE id = %s", (user_id,))
         user = cursor.fetchone()
         if user:
-            return jsonify({'role': user['role']})
-        return jsonify({'role': 'usuario'}), 404
+            return jsonify({
+                'role': user['role'],
+                'is_premium': bool(user.get('is_premium', 0))
+            })
+        return jsonify({'role': 'usuario', 'is_premium': False}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    finally:
+        cursor.close()
+        conn.close()
+
+@app.route('/api/check-premium/<int:user_id>', methods=['GET'])
+def check_premium(user_id):
+    """
+    Consulta se um usuário possui o Plano Premium ativo
+    ---
+    tags:
+      - Pagamento
+    parameters:
+      - in: path
+        name: user_id
+        type: integer
+        required: true
+        description: ID do usuário
+    responses:
+      200:
+        description: Status de assinatura retornado com sucesso
+      404:
+        description: Usuário não encontrado
+    """
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute("SELECT is_premium, stripe_customer_id, stripe_subscription_id FROM usuarios WHERE id = %s", (user_id,))
+        user = cursor.fetchone()
+        if user:
+            return jsonify({
+                'is_premium': bool(user.get('is_premium', 0)),
+                'stripe_customer_id': user.get('stripe_customer_id'),
+                'stripe_subscription_id': user.get('stripe_subscription_id')
+            })
+        return jsonify({'is_premium': False}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
     finally:

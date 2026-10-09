@@ -16,7 +16,12 @@
                 <img src="https://ui-avatars.com/api/?name={{ session.get('nome') }}&size=30" alt="Avatar Padrão" style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; margin-right: 8px;">
             {% endif %}
             <span style="margin-right: 10px;">Olá, {{ session['nome'] }}</span>
-            {% if session.get('role') %}<span class="badge" style="background:#e9ecef; color:#333; padding:2px 6px; border-radius:4px; font-size:0.8em; margin-right:15px;">({{ session['role'] }})</span>{% endif %}
+            {% if session.get('role') %}<span class="badge" style="background:#e9ecef; color:#333; padding:2px 6px; border-radius:4px; font-size:0.8em; margin-right:8px;">({{ session['role'] }})</span>{% endif %}
+            {% if session.get('is_premium') %}
+                <span class="badge" style="background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; font-weight: bold; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; margin-right: 12px; box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);">⭐ VIP PREMIUM</span>
+            {% else %}
+                <a href="{{ url_for('checkout') }}" style="background: linear-gradient(135deg, #28a745, #218838); color: white; padding: 4px 10px; border-radius: 12px; font-size: 0.8em; text-decoration: none; font-weight: bold; margin-right: 12px;">⚡ Virar Premium</a>
+            {% endif %}
             {% if session.get('role') == 'admin' %}
                 <a href="{{ url_for('admin_logs') }}" style="color: yellow; margin-right: 15px;">Ver Logs (Admin)</a>
             {% endif %}
@@ -29,6 +34,23 @@
             <span class="eyebrow">Uma carreira em cenas</span>
             <h1>Os filmes de Tom Hanks</h1>
             <p class="lead">Explore os papéis mais marcantes, guarde seus favoritos e compartilhe suas impressões.</p>
+
+            {% if not session.get('is_premium') %}
+            <div style="background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; padding: 12px 18px; margin: 15px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <div>
+                    <strong>⭐ Plano Gratuito:</strong> Você possui <strong>{{ favoritos|length }}</strong> de <strong>5</strong> favoritos disponíveis.
+                    <div style="font-size: 0.9em; color: #6c757d; margin-top: 2px;">Assine o <strong>Plano Premium</strong> por R$ 9,90/mês para desbloquear <strong>favoritos ilimitados</strong> e selo VIP!</div>
+                </div>
+                <a href="{{ url_for('checkout') }}" style="background: #ffc107; color: #212529; font-weight: bold; padding: 6px 14px; border-radius: 6px; text-decoration: none; white-space: nowrap;">⚡ Assinar com Stripe (R$ 9,90)</a>
+            </div>
+            {% else %}
+            <div style="background: #d4edda; color: #155724; border: 1px solid #c3e6cb; border-radius: 8px; padding: 10px 18px; margin: 15px 0; display: flex; align-items: center; justify-content: space-between;">
+                <div>
+                    <strong>⭐ Assinante Premium Ativo:</strong> Você possui <strong>favoritos ilimitados</strong> (atualmente {{ favoritos|length }} filmes favoritados) e selo VIP exclusivo!
+                </div>
+                <span style="background: #28a745; color: white; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">PLANO ATIVO</span>
+            </div>
+            {% endif %}
         </section>
     {% with messages = get_flashed_messages() %}
       {% if messages %} <p class="flash">{{ messages[0] }}</p> {% endif %}
@@ -44,7 +66,11 @@
                 <div class="movie-actions">
             
             {% if movie.id in favoritos %}
-                <span class="favorite">★ Favoritado</span>
+                <span class="favorite" style="margin-right: 8px;">★ Favoritado</span>
+                <form action="{{ url_for('desfavoritar') }}" method="POST" style="display:inline;">
+                    <input type="hidden" name="movie_id" value="{{ movie.id }}">
+                    <button type="submit" style="background: transparent; color: #dc3545; border: 1px solid #dc3545; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">Remover</button>
+                </form>
             {% else %}
                 <form action="{{ url_for('favoritar') }}" method="POST">
                     <input type="hidden" name="movie_id" value="{{ movie.id }}">
