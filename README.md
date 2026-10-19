@@ -1,12 +1,83 @@
-# Catálogo de Filmes - Tom Hanks (Atividade 5: Log de Auditoria com Redis)
+# Catálogo de Filmes - Tom Hanks (Atividade Final: SaaS, PaaS, IaaS & Documentação do Sistema)
 
-Aplicação que consome a API do TMDB, exibe a filmografia do Tom Hanks, gerencia favoritos/comentários e possui um microsserviço de autenticação desacoplado.
+Aplicação baseada em microsserviços que consome a API do TMDB, exibe a filmografia do Tom Hanks, gerencia favoritos com cotas freemium, comentários moderados, perfis sociais com upload de avatar via MinIO, plano premium via Stripe e logs de auditoria de alta performance com Redis Streams.
 
 **Professor responsável:** [@siriani](https://github.com/siriani)
 
-**Arquivo relatorio para P1**[Clique aqui para acessar](./P1_ISW055_Victor_Siveri.pdf)
+**Arquivo relatório para P1:** [Clique aqui para acessar](./P1_ISW055_Victor_Siveri.pdf)
 
 ---
+
+## 📖 Documentação Reversa do Sistema Completo
+
+Toda a documentação reversa solicitada no fechamento da série — **Especificação do Ponto de Vista do Usuário**, **Arquitetura Geral (Big Picture)**, **Regras de Negócio ("Se X, então Y")** e **Modelo de Dados (DER / Dicionário de Dados)** — está centralizada no documento dedicado:
+
+👉 **[Consulte aqui o DOCUMENTACAO.md](./DOCUMENTACAO.md)** 👈
+
+---
+
+## ☁️ Classificação SaaS / PaaS / IaaS do Projeto
+
+O projeto utiliza simultaneamente as três camadas fundamentais de computação em nuvem:
+
+* **IaaS (Infrastructure as a Service):** Você administra o Sistema Operacional para cima. O provedor fornece a máquina virtual, rede e armazenamento, enquanto o desenvolvedor instala e gerencia o SO, Docker e dependências de infraestrutura.
+* **PaaS (Platform as a Service):** Você entrega apenas o código da aplicação ou imagens de container. O provedor/runtime gerencia o SO subjacente, o isolamento e o ciclo de vida dos serviços.
+* **SaaS (Software as a Service):** Você consome um produto de software pronto de terceiros por meio de APIs ou interfaces web, sem gerenciar nenhuma infraestrutura ou runtime.
+
+### Tabela de Classificação das Peças do Sistema
+
+| Peça / Componente do Sistema | Camada de Nuvem | Justificativa Técnica |
+| :--- | :---: | :--- |
+| **VM Fatec / Proxmox (Ubuntu + Docker)** | **IaaS** | O provedor fornece apenas a infraestrutura de hardware virtualizado, cabendo ao aluno instalar e gerenciar o Sistema Operacional Ubuntu, permissões de usuário e o Docker Engine. |
+| **Containers de Microsserviços (`catalog`, `auth-service`, `log-service`)** | **PaaS** | Funcionam sobre a camada de abstração do Docker Compose (runtime de containers), permitindo o deploy direto do código da aplicação sem necessidade de configurar servidores web manuais no SO. |
+| **MinIO (Object Storage S3)** | **PaaS** | É executado como um serviço de plataforma conteinerizado dedicado ao armazenamento e recuperação de objetos via API S3, abstraindo o sistema de arquivos da máquina hospedeira. |
+| **Redis (Streams de Auditoria)** | **PaaS** | Serviço de dados conteinerizado gerenciado como componente de plataforma que oferece estrutura de dados de alta velocidade em memória para a aplicação. |
+| **MariaDB Externo (`35.226.64.52` - GCP)** | **PaaS / DBaaS** | Banco de dados relacional hospedado na nuvem disponibilizado como serviço pronto de banco de dados (Database as a Service), onde o usuário apenas gerencia dados e esquemas, sem administrar o servidor. |
+| **Stripe (Checkout, Cobrança e Webhooks)** | **SaaS** | Plataforma de pagamentos digitais consumida inteiramente via API REST e páginas hospedadas, gerenciando a conformidade PCI-DSS, cartões de crédito e regras bancárias sem nenhuma infraestrutura nossa. |
+| **Mailtrap / Brevo (SMTP Transacional)** | **SaaS** | Serviço de e-mail consumido diretamente via protocolo SMTP/API que cuida da entrega de mensagens, infraestrutura de e-mail e reputação de IP. |
+| **The Movie Database (TMDB API)** | **SaaS** | Serviço externo de dados consumido via API REST pública para busca da filmografia, fotos de cartazes e metadados de Tom Hanks. |
+
+### Diagrama das Camadas de Nuvem no Projeto
+
+```mermaid
+flowchart TD
+    subgraph SAAS ["Camada SaaS (Software as a Service) — Consumo via APIs de Terceiros"]
+        S1["Stripe (Pagamentos & Checkout)"]
+        S2["Mailtrap / Brevo (E-mail Transacional)"]
+        S3["TMDB API (Metadados de Filmes)"]
+    end
+
+    subgraph PAAS ["Camada PaaS / CaaS (Platform / Containers as a Service) — Runtimes & Serviços"]
+        P1["catalog-service (Container)"]
+        P2["auth-service (Container)"]
+        P3["log-service (Container)"]
+        P4["MinIO S3 Object Storage (Container)"]
+        P5["Redis Streams (Container)"]
+        P6[("MariaDB Cloud SQL - GCP DBaaS")]
+    end
+
+    subgraph IAAS ["Camada IaaS (Infrastructure as a Service) — Hardware Virtual & SO"]
+        I1["VM Proxmox / Ubuntu Server na Fatec\n(Gerenciamento de SO, Firewall, Kernel, Docker Engine)"]
+    end
+
+    S1 <-->|"Webhooks / REST"| P1
+    S2 <-->|"SMTP"| P2
+    S3 <-->|"REST API"| P1
+    P1 --- P6
+    P2 --- P6
+    P1 --- P4
+    P1 --- P2
+    P1 --- P3
+    P3 --- P5
+    P1 --> I1
+    P2 --> I1
+    P3 --> I1
+    P4 --> I1
+    P5 --> I1
+```
+
+---
+
 
 ## 🚀 O que mudou nesta Atividade (Atividade 3)
 
