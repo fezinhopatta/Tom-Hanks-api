@@ -6,6 +6,8 @@ Aplicação baseada em microsserviços que consome a API do TMDB, exibe a filmog
 
 **Arquivo relatório para P1:** [Clique aqui para acessar](./P1_ISW055_Victor_Siveri.pdf)
 
+**Continuação no repositorio[NovoRepo](https://github.com/fezinhopatta/TraumaTeam)**
+
 ---
 
 ## 📖 Documentação Reversa do Sistema Completo
